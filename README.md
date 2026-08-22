@@ -1,57 +1,73 @@
-# Marcin F1 Hub
+# Marcin F1 Hub 2.0
 
-Mobilna mini-aplikacja F1 przeznaczona do podlinkowania z profilu X.
+Etap 1 rozwoju aplikacji F1 przeznaczonej do udostępniania z profilu X.
 
-## Funkcje MVP
+## Co zawiera wersja 2.0
 
-- automatyczne pobieranie aktualnej klasyfikacji kierowców,
-- wykrywanie najbliższej sesji weekendu F1,
-- odliczanie do sesji,
-- sekcja własnych newsów,
-- bezpośredni przycisk do profilu X,
-- układ zoptymalizowany pod telefon.
+- ekran startowy z najbliższą sesją i odliczaniem,
+- pełny kalendarz sezonu,
+- godziny przeliczone na strefę `Europe/Warsaw`,
+- wyniki sesji:
+  - FP1,
+  - FP2,
+  - FP3,
+  - kwalifikacje sprintu,
+  - sprint,
+  - kwalifikacje,
+  - wyścig,
+- fallback wyników wyścigu / sprintu / kwalifikacji do Jolpica,
+- klasyfikacja kierowców,
+- klasyfikacja konstruktorów,
+- strony kierowców,
+- forma kierowcy z ostatnich 5 wyścigów,
+- mobilny ciemny interfejs.
 
-## Uruchomienie
+## Źródła danych
 
-1. Zainstaluj Python 3.11+.
-2. W terminalu przejdź do katalogu projektu.
-3. Utwórz środowisko wirtualne (opcjonalnie).
-4. Zainstaluj zależności:
+Aplikacja korzysta z:
+
+- Jolpica / Ergast-compatible API — kalendarz, klasyfikacje, wyniki wyścigów,
+- OpenF1 — wyniki poszczególnych sesji.
+
+OpenF1 udostępnia dane historyczne bez logowania. Dane aktualnie trwającej sesji mogą podlegać ograniczeniom dostawcy, dlatego aplikacja ma obsługę braku danych i fallback.
+
+## Uruchomienie lokalne
 
 ```bash
 pip install -r requirements.txt
+python -m streamlit run app.py
 ```
 
-5. Uruchom:
-
-```bash
-streamlit run app.py
-```
-
-## Edycja newsów
-
-Edytuj:
+Następnie otwórz:
 
 ```text
-data/news.json
+http://localhost:8501
 ```
 
-Każdy wpis może zawierać:
+## Publikacja na Streamlit Community Cloud
 
-```json
-{
-  "title": "Tytuł",
-  "description": "Krótki opis",
-  "url": "https://..."
-}
+Wgraj do GitHuba cały katalog projektu, ustaw plik startowy:
+
+```text
+app.py
 ```
 
-## Następne etapy
+i wdroż repozytorium w Streamlit Community Cloud.
 
-- automatyczne pobieranie postów z X API,
-- pełny kalendarz sezonu,
-- wyniki sesji,
-- klasyfikacja konstruktorów,
-- panel administratora do dodawania newsów,
-- własna domena i publikacja online,
-- wersja PWA / instalacja na ekranie telefonu.
+## Struktura
+
+```text
+marcin_f1_hub_2/
+├── app.py
+├── f1_api.py
+├── ui.py
+├── requirements.txt
+├── README.md
+└── data/
+    └── news.json
+```
+
+## Następny etap
+
+Po ustabilizowaniu Etapu 1 można przejść do Content Center:
+panel redakcyjny, własne newsy, integracja z X oraz generowanie treści.
