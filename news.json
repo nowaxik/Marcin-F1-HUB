@@ -1,0 +1,12 @@
+[
+  {
+    "title": "Twoja pierwsza wiadomość F1",
+    "description": "Na razie wpis przykładowy. Później podepniemy tu Twoje posty z X lub własny panel redakcyjny.",
+    "url": "https://x.com/MarcinNov"
+  },
+  {
+    "title": "Miejsce na najważniejszy news dnia",
+    "description": "Możesz edytować plik data/news.json bez zmieniania kodu aplikacji.",
+    "url": ""
+  }
+]
