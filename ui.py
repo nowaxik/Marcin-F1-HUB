@@ -372,19 +372,26 @@ def driver_row_html(row: dict, full: bool = False) -> str:
 
 
 def render_metric_cards(items, columns=2):
+    """Render metric cards as one compact HTML block.
+
+    Streamlit/Markdown can interpret an indented HTML fragment after a blank
+    line as a Markdown code block. Building the whole grid without leading
+    indentation or blank lines prevents the second/third card from being
+    displayed as raw <div> markup.
+    """
     cls = "metric-grid cols-3" if columns == 3 else "metric-grid"
     cards = []
     for label, value, sub in items:
         cards.append(
-            f"""
-            <div class="metric-card">
-                <div class="metric-label">{escape(str(label))}</div>
-                <div class="metric-value">{escape(str(value))}</div>
-                <div class="metric-sub">{escape(str(sub))}</div>
-            </div>
-            """
+            '<div class="metric-card">'
+            f'<div class="metric-label">{escape(str(label))}</div>'
+            f'<div class="metric-value">{escape(str(value))}</div>'
+            f'<div class="metric-sub">{escape(str(sub))}</div>'
+            '</div>'
         )
-    st.markdown(f'<div class="{cls}">{"".join(cards)}</div>', unsafe_allow_html=True)
+
+    html = f'<div class="{cls}">{"".join(cards)}</div>'
+    st.markdown(html, unsafe_allow_html=True)
 
 
 def render_empty(text: str):
