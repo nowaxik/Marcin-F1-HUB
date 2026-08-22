@@ -1,8 +1,8 @@
-# Marcin F1 Hub 2.0
+# Marcin F1 Hub 2.1
 
 Etap 1 rozwoju aplikacji F1 przeznaczonej do udostępniania z profilu X.
 
-## Co zawiera wersja 2.0
+## Co zawiera wersja 2.1
 
 - ekran startowy z najbliższą sesją i odliczaniem,
 - pełny kalendarz sezonu,
@@ -21,6 +21,20 @@ Etap 1 rozwoju aplikacji F1 przeznaczonej do udostępniania z profilu X.
 - strony kierowców,
 - forma kierowcy z ostatnich 5 wyścigów,
 - mobilny ciemny interfejs.
+
+
+## Weekend Center
+
+Nowa sekcja łączy cały weekend Grand Prix na jednym ekranie:
+
+- automatycznie wybiera aktualną albo najbliższą rundę,
+- pokazuje postęp weekendu,
+- wyróżnia najbliższą sesję i odlicza do jej startu,
+- prezentuje harmonogram wszystkich sesji,
+- oznacza sesje jako zakończone, nadchodzące, następne lub trwające,
+- pokazuje szybki podgląd Top 5 wyników zakończonych sesji,
+- pokazuje Top 3 klasyfikacji kierowców i konstruktorów,
+- podsumowuje numer rundy, tor oraz liczbę zakończonych sesji.
 
 ## Źródła danych
 
@@ -71,3 +85,9 @@ marcin_f1_hub_2/
 
 Po ustabilizowaniu Etapu 1 można przejść do Content Center:
 panel redakcyjny, własne newsy, integracja z X oraz generowanie treści.
+
+
+## Poprawka 2.0.1
+
+- poprawione renderowanie kart statystyk na stronie Start i Kierowcy,
+- druga i trzecia karta nie są już interpretowane przez Markdown jako kod HTML.

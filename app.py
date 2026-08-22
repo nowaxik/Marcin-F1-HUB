@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from html import escape
 from zoneinfo import ZoneInfo
 
@@ -29,6 +29,9 @@ from ui import (
     render_metric_cards,
     render_section_title,
     render_session_card,
+    render_weekend_header,
+    render_weekend_session,
+    render_podium_cards,
     status_badge,
 )
 
@@ -112,6 +115,204 @@ def countdown(target):
     return f"{hours:02d} h · {minutes:02d} min"
 
 
+
+def parse_openf1_datetime(value):
+    if not value:
+        return None
+    try:
+        return datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+    except ValueError:
+        return None
+
+
+def focus_race_index(schedule):
+    """Wybierz aktualny weekend, a jeśli go nie ma — najbliższy."""
+    if not schedule:
+        return 0
+
+    now = datetime.now(timezone.utc)
+
+    for index, race in enumerate(schedule):
+        sessions = race_sessions(race)
+        if not sessions:
+            continue
+        start = sessions[0][0]
+        end = sessions[-1][0]
+        # Weekend uznajemy za aktywny do 5 h po starcie wyścigu.
+        if start <= now <= end + timedelta(hours=5):
+            return index
+
+    for index, race in enumerate(schedule):
+        sessions = race_sessions(race)
+        if sessions and sessions[0][0] > now:
+            return index
+
+    return len(schedule) - 1
+
+
+def build_session_options(race, openf1_sessions):
+    """Połącz planowane sesje z sesjami zwróconymi przez OpenF1."""
+    planned = [label for _, label in race_sessions(race)]
+    session_map = {}
+
+    for session in openf1_sessions:
+        raw_name = session.get("session_name") or session.get("session_type") or "Sesja"
+        pretty = format_session_name(raw_name)
+        if pretty not in session_map:
+            session_map[pretty] = session
+
+    options = list(planned)
+    for pretty in session_map:
+        if pretty not in options:
+            options.append(pretty)
+
+    return options, session_map
+
+
+def load_normalized_results(race, selected_session, openf1_sessions):
+    """Pobierz wyniki jednej sesji w jednolitym formacie."""
+    _, session_map = build_session_options(race, openf1_sessions)
+    selected_openf1 = session_map.get(selected_session)
+    results = []
+    source = None
+
+    if selected_openf1 and selected_openf1.get("session_key"):
+        try:
+            session_key = selected_openf1["session_key"]
+            raw_results = get_openf1_results(session_key)
+            drivers = get_openf1_drivers(session_key)
+            drivers_by_number = {
+                safe_int(d.get("driver_number")): d for d in drivers
+            }
+
+            for row in raw_results:
+                d = drivers_by_number.get(safe_int(row.get("driver_number")), {})
+                results.append(
+                    {
+                        "position": row.get("position"),
+                        "name": d.get("full_name")
+                        or d.get("broadcast_name")
+                        or f"#{row.get('driver_number')}",
+                        "code": d.get("name_acronym", ""),
+                        "team": d.get("team_name", "—"),
+                        "duration": row.get("duration"),
+                        "gap": row.get("gap_to_leader"),
+                        "laps": row.get("number_of_laps"),
+                        "status": (
+                            "DSQ" if row.get("dsq")
+                            else "DNS" if row.get("dns")
+                            else "DNF" if row.get("dnf")
+                            else ""
+                        ),
+                    }
+                )
+            source = "OpenF1"
+        except APIError:
+            results = []
+
+    if not results:
+        legacy_key = {
+            "Kwalifikacje": "qualifying",
+            "Sprint": "sprint",
+            "Wyścig": "race",
+        }.get(selected_session)
+
+        if legacy_key:
+            try:
+                rows = get_session_results(SEASON, safe_int(race.get("round")), legacy_key)
+                for row in rows:
+                    driver = row.get("Driver", {})
+                    constructors = row.get("Constructors", [])
+                    team = constructors[0].get("name", "—") if constructors else "—"
+
+                    if legacy_key == "qualifying":
+                        duration = [row.get("Q1"), row.get("Q2"), row.get("Q3")]
+                        gap = None
+                        laps = None
+                        status = ""
+                    else:
+                        time_obj = row.get("Time") or {}
+                        duration = time_obj.get("time") or row.get("status")
+                        gap = None
+                        laps = row.get("laps")
+                        status = row.get("status", "")
+
+                    results.append(
+                        {
+                            "position": row.get("position"),
+                            "name": (
+                                f"{driver.get('givenName', '')} "
+                                f"{driver.get('familyName', '')}"
+                            ).strip(),
+                            "code": driver.get("code", ""),
+                            "team": team,
+                            "duration": duration,
+                            "gap": gap,
+                            "laps": laps,
+                            "status": status,
+                        }
+                    )
+                source = "Jolpica"
+            except APIError:
+                results = []
+
+    results = sorted(results, key=lambda row: safe_int(row.get("position"), 999))
+    return results, source
+
+
+def session_state(label, dt, openf1_session, all_sessions):
+    now = datetime.now(timezone.utc)
+
+    if openf1_session:
+        start = parse_openf1_datetime(openf1_session.get("date_start"))
+        end = parse_openf1_datetime(openf1_session.get("date_end"))
+        if start and end and start <= now <= end:
+            return "TRWA", "Sesja jest obecnie w toku"
+
+    future = [(sdt, slabel) for sdt, slabel in all_sessions if sdt > now]
+    next_label = min(future, key=lambda item: item[0])[1] if future else None
+
+    if dt > now:
+        if label == next_label:
+            return "NASTĘPNA", f"Start za {countdown(dt)}"
+        return "NADCHODZI", ""
+
+    return "ZAKOŃCZONA", ""
+
+
+def render_result_rows(results, limit=None):
+    rows = results[:limit] if limit else results
+    for row in rows:
+        pos = row.get("position") or "—"
+        duration = format_duration(row.get("duration"))
+        gap = format_gap(row.get("gap"))
+        laps = row.get("laps")
+        status = row.get("status") or ""
+
+        detail_parts = [row.get("team", "—")]
+        if duration:
+            detail_parts.append(duration)
+        if gap:
+            detail_parts.append(gap)
+        if laps not in (None, ""):
+            detail_parts.append(f"{laps} okr.")
+        if status and status not in ("Finished", ""):
+            detail_parts.append(str(status))
+
+        st.markdown(
+            (
+                '<div class="result-row">'
+                f'<div class="result-pos">{escape(str(pos))}</div>'
+                '<div class="result-main">'
+                f'<div class="result-name">{escape(row.get("name", "—"))}</div>'
+                f'<div class="result-detail">{escape(" · ".join(detail_parts))}</div>'
+                '</div>'
+                '</div>'
+            ),
+            unsafe_allow_html=True,
+        )
+
+
 @st.cache_data(ttl=300, show_spinner=False)
 def load_core():
     return get_schedule(SEASON), get_driver_standings(SEASON), get_constructor_standings(SEASON)
@@ -132,7 +333,7 @@ render_hero(
 
 nav = st.radio(
     "Nawigacja",
-    ["Start", "Kalendarz", "Wyniki", "Klasyfikacje", "Kierowcy"],
+    ["Start", "Weekend", "Kalendarz", "Wyniki", "Klasyfikacje", "Kierowcy"],
     horizontal=True,
     label_visibility="collapsed",
 )
@@ -189,13 +390,187 @@ if nav == "Start":
     st.markdown(
         """
         <div class="info-box">
-            <strong>F1 Hub 2.0</strong><br>
+            <strong>F1 Hub 2.1</strong><br>
             Dane sportowe są pobierane automatycznie. Wyniki sesji mogą pojawić się
             kilka minut po publikacji oficjalnych rezultatów.
         </div>
         """,
         unsafe_allow_html=True,
     )
+
+# ============================================================
+# WEEKEND CENTER
+# ============================================================
+elif nav == "Weekend":
+    render_section_title("🏎️ Weekend Center")
+
+    if not schedule:
+        render_empty("Nie można otworzyć Weekend Center bez kalendarza.")
+    else:
+        labels = [
+            f"R{race.get('round')} · {race.get('raceName')}"
+            for race in schedule
+        ]
+        selected_label = st.selectbox(
+            "Wybierz Grand Prix",
+            labels,
+            index=focus_race_index(schedule),
+            key="weekend_race",
+        )
+        race = schedule[labels.index(selected_label)]
+        sessions = race_sessions(race)
+        location = race.get("Circuit", {}).get("Location", {})
+        circuit = race.get("Circuit", {}).get("circuitName", "—")
+        locality = location.get("locality", "")
+        country = location.get("country", "")
+        place = ", ".join(x for x in [locality, country] if x)
+
+        if sessions:
+            start_local = sessions[0][0].astimezone(WARSAW)
+            end_local = sessions[-1][0].astimezone(WARSAW)
+            if start_local.date() == end_local.date():
+                date_range = start_local.strftime("%d.%m.%Y")
+            else:
+                date_range = (
+                    f"{start_local.strftime('%d.%m')} – "
+                    f"{end_local.strftime('%d.%m.%Y')}"
+                )
+        else:
+            date_range = "—"
+
+        render_weekend_header(
+            race.get("round", "—"),
+            race.get("raceName", "Grand Prix"),
+            circuit,
+            place,
+            date_range,
+        )
+
+        try:
+            season_openf1 = get_openf1_sessions(SEASON)
+            openf1_sessions = match_openf1_sessions_to_race(season_openf1, race)
+        except APIError:
+            openf1_sessions = []
+
+        _, openf1_map = build_session_options(race, openf1_sessions)
+        now = datetime.now(timezone.utc)
+        completed = sum(1 for dt, _ in sessions if dt <= now)
+        total = len(sessions)
+        progress = completed / total if total else 0
+
+        st.markdown(
+            (
+                '<div class="weekend-progress-head">'
+                f'<span>Postęp weekendu</span><span>{completed}/{total} sesji</span>'
+                '</div>'
+            ),
+            unsafe_allow_html=True,
+        )
+        st.progress(progress)
+
+        next_sessions = [(dt, label) for dt, label in sessions if dt > now]
+        if next_sessions:
+            next_dt, next_label = min(next_sessions, key=lambda item: item[0])
+            render_session_card(
+                gp="NASTĘPNA SESJA",
+                session=next_label,
+                countdown=countdown(next_dt),
+                details=format_local_datetime(next_dt),
+            )
+        elif sessions:
+            st.success("Weekend został zakończony.")
+
+        render_section_title("🗓️ Harmonogram weekendu")
+
+        polish_days = {
+            0: "Poniedziałek",
+            1: "Wtorek",
+            2: "Środa",
+            3: "Czwartek",
+            4: "Piątek",
+            5: "Sobota",
+            6: "Niedziela",
+        }
+
+        for dt, label in sessions:
+            openf1_session = openf1_map.get(label)
+            state, note = session_state(label, dt, openf1_session, sessions)
+            local = dt.astimezone(WARSAW)
+            render_weekend_session(
+                label=label,
+                dt_text=local.strftime("%d.%m · %H:%M"),
+                day_text=polish_days.get(local.weekday(), ""),
+                state=state,
+                note=note,
+            )
+
+        render_section_title("⏱️ Szybkie wyniki")
+        finished_labels = [label for dt, label in sessions if dt <= now]
+        if not finished_labels:
+            render_empty("Żadna sesja tego weekendu jeszcze się nie zakończyła.")
+        else:
+            quick_session = st.selectbox(
+                "Sesja do podglądu",
+                list(reversed(finished_labels)),
+                key="weekend_quick_results",
+            )
+            quick_results, quick_source = load_normalized_results(
+                race, quick_session, openf1_sessions
+            )
+
+            if not quick_results:
+                render_empty(
+                    "Wyniki tej sesji nie są jeszcze dostępne w źródłach danych."
+                )
+            else:
+                st.caption(f"Top 5 · źródło: {quick_source}")
+                render_result_rows(quick_results, limit=5)
+
+        render_section_title("🏆 Sytuacja w mistrzostwach")
+        standings_drivers_tab, standings_teams_tab = st.tabs(
+            ["Top 3 kierowców", "Top 3 konstruktorów"]
+        )
+
+        with standings_drivers_tab:
+            podium = []
+            for row in driver_standings[:3]:
+                driver = row.get("Driver", {})
+                podium.append(
+                    (
+                        row.get("position", "—"),
+                        f"{driver.get('givenName', '')} {driver.get('familyName', '')}".strip(),
+                        row.get("points", "0"),
+                    )
+                )
+            if podium:
+                render_podium_cards(podium)
+            else:
+                render_empty("Klasyfikacja kierowców nie jest dostępna.")
+
+        with standings_teams_tab:
+            podium = []
+            for row in constructor_standings[:3]:
+                constructor = row.get("Constructor", {})
+                podium.append(
+                    (
+                        row.get("position", "—"),
+                        constructor.get("name", "—"),
+                        row.get("points", "0"),
+                    )
+                )
+            if podium:
+                render_podium_cards(podium)
+            else:
+                render_empty("Klasyfikacja konstruktorów nie jest dostępna.")
+
+        render_metric_cards(
+            [
+                ("Runda", f"{race.get('round', '—')}/{len(schedule)}", "sezon"),
+                ("Tor", circuit, place or "—"),
+                ("Sesje", str(total), f"{completed} zakończonych"),
+            ],
+            columns=3,
+        )
 
 # ============================================================
 # KALENDARZ
@@ -291,114 +666,19 @@ elif nav == "Wyniki":
         race = race_options[labels.index(selected_label)]
         round_no = safe_int(race.get("round"))
 
-        # Najpierw próbujemy OpenF1, bo obsługuje FP, sprint, kwalifikacje i wyścig.
-        openf1_sessions = []
+        # OpenF1 zapewnia wyniki wszystkich typów sesji; Jolpica jest fallbackiem.
         try:
             season_sessions = get_openf1_sessions(SEASON)
             openf1_sessions = match_openf1_sessions_to_race(season_sessions, race)
         except APIError:
             openf1_sessions = []
 
-        session_names = []
-        session_map = {}
-        for sess in openf1_sessions:
-            raw_name = sess.get("session_name") or sess.get("session_type") or "Sesja"
-            pretty = format_session_name(raw_name)
-            # zachowaj unikalność
-            display = pretty
-            counter = 2
-            while display in session_map:
-                display = f"{pretty} {counter}"
-                counter += 1
-            session_map[display] = sess
-            session_names.append(display)
-
-        # Fallback na stabilne endpointy wyścig / kwalifikacje / sprint.
-        legacy_names = ["Kwalifikacje", "Sprint", "Wyścig"]
-        for name in legacy_names:
-            if name not in session_names:
-                session_names.append(name)
-                session_map[name] = None
-
+        session_names, _ = build_session_options(race, openf1_sessions)
         selected_session = st.selectbox("Sesja", session_names)
-        selected_openf1 = session_map.get(selected_session)
 
-        results = []
-        source = None
-
-        if selected_openf1 and selected_openf1.get("session_key"):
-            try:
-                session_key = selected_openf1["session_key"]
-                raw_results = get_openf1_results(session_key)
-                drivers = get_openf1_drivers(session_key)
-                drivers_by_number = {
-                    safe_int(d.get("driver_number")): d for d in drivers
-                }
-                for row in raw_results:
-                    d = drivers_by_number.get(safe_int(row.get("driver_number")), {})
-                    results.append(
-                        {
-                            "position": row.get("position"),
-                            "name": d.get("full_name") or d.get("broadcast_name") or f"#{row.get('driver_number')}",
-                            "code": d.get("name_acronym", ""),
-                            "team": d.get("team_name", "—"),
-                            "duration": row.get("duration"),
-                            "gap": row.get("gap_to_leader"),
-                            "laps": row.get("number_of_laps"),
-                            "status": (
-                                "DSQ" if row.get("dsq")
-                                else "DNS" if row.get("dns")
-                                else "DNF" if row.get("dnf")
-                                else ""
-                            ),
-                        }
-                    )
-                source = "OpenF1"
-            except APIError:
-                results = []
-
-        if not results:
-            legacy_key = {
-                "Kwalifikacje": "qualifying",
-                "Sprint": "sprint",
-                "Wyścig": "race",
-            }.get(selected_session)
-
-            if legacy_key:
-                try:
-                    rows = get_session_results(SEASON, round_no, legacy_key)
-                    for row in rows:
-                        driver = row.get("Driver", {})
-                        constructors = row.get("Constructors", [])
-                        team = constructors[0].get("name", "—") if constructors else "—"
-
-                        if legacy_key == "qualifying":
-                            duration = [row.get("Q1"), row.get("Q2"), row.get("Q3")]
-                            gap = None
-                            laps = None
-                            status = ""
-                        else:
-                            time_obj = row.get("Time") or {}
-                            duration = time_obj.get("time") or row.get("status")
-                            gap = None
-                            laps = row.get("laps")
-                            status = row.get("status", "")
-
-                        results.append(
-                            {
-                                "position": row.get("position"),
-                                "name": f"{driver.get('givenName', '')} {driver.get('familyName', '')}".strip(),
-                                "code": driver.get("code", ""),
-                                "team": team,
-                                "duration": duration,
-                                "gap": gap,
-                                "laps": laps,
-                                "status": status,
-                            }
-                        )
-                    source = "Jolpica"
-                except APIError:
-                    results = []
+        results, source = load_normalized_results(
+            race, selected_session, openf1_sessions
+        )
 
         if not results:
             render_empty(
@@ -407,35 +687,8 @@ elif nav == "Wyniki":
             )
         else:
             st.caption(f"Źródło danych: {source}")
-            for row in sorted(results, key=lambda r: safe_int(r.get("position"), 999)):
-                pos = row.get("position") or "—"
-                duration = format_duration(row.get("duration"))
-                gap = format_gap(row.get("gap"))
-                laps = row.get("laps")
-                status = row.get("status") or ""
+            render_result_rows(results)
 
-                detail_parts = [row.get("team", "—")]
-                if duration:
-                    detail_parts.append(duration)
-                if gap:
-                    detail_parts.append(gap)
-                if laps not in (None, ""):
-                    detail_parts.append(f"{laps} okr.")
-                if status and status not in ("Finished", ""):
-                    detail_parts.append(str(status))
-
-                st.markdown(
-                    f"""
-                    <div class="result-row">
-                        <div class="result-pos">{escape(str(pos))}</div>
-                        <div class="result-main">
-                            <div class="result-name">{escape(row.get('name', '—'))}</div>
-                            <div class="result-detail">{escape(' · '.join(detail_parts))}</div>
-                        </div>
-                    </div>
-                    """,
-                    unsafe_allow_html=True,
-                )
 
 # ============================================================
 # KLASYFIKACJE
@@ -566,7 +819,7 @@ elif nav == "Kierowcy":
 st.markdown(
     """
     <div class="footer">
-        Marcin F1 Hub 2.0 · dane: Jolpica / OpenF1 · godziny: Europe/Warsaw
+        Marcin F1 Hub 2.1 · dane: Jolpica / OpenF1 · godziny: Europe/Warsaw
     </div>
     """,
     unsafe_allow_html=True,

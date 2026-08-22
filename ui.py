@@ -176,6 +176,142 @@ def apply_styles():
                 font-size: .75rem;
             }
 
+
+            .weekend-hero {
+                position: relative;
+                overflow: hidden;
+                padding: 1.25rem 1.2rem;
+                border-radius: 22px;
+                border: 1px solid rgba(255,255,255,.08);
+                background:
+                    radial-gradient(circle at 92% 15%, rgba(255,56,71,.18), transparent 38%),
+                    linear-gradient(145deg, #191e24, #11151a);
+                margin: .65rem 0 1rem;
+            }
+
+            .weekend-round {
+                color: var(--accent);
+                font-size: .72rem;
+                font-weight: 900;
+                letter-spacing: .12em;
+                text-transform: uppercase;
+            }
+
+            .weekend-name {
+                margin: .2rem 0 .35rem;
+                font-size: clamp(1.55rem, 6vw, 2.15rem);
+                font-weight: 950;
+                letter-spacing: -.045em;
+                line-height: 1;
+            }
+
+            .weekend-location {
+                color: var(--muted);
+                font-size: .86rem;
+            }
+
+            .weekend-progress-head {
+                display: flex;
+                justify-content: space-between;
+                gap: 1rem;
+                margin: .85rem 0 .35rem;
+                color: var(--muted);
+                font-size: .76rem;
+                font-weight: 800;
+            }
+
+            .weekend-session {
+                display: grid;
+                grid-template-columns: 5.8rem minmax(0, 1fr) auto;
+                gap: .7rem;
+                align-items: center;
+                padding: .82rem .9rem;
+                margin-bottom: .45rem;
+                border-radius: 15px;
+                border: 1px solid rgba(255,255,255,.065);
+                background: rgba(255,255,255,.04);
+            }
+
+            .weekend-session.next {
+                border-color: rgba(255,56,71,.28);
+                background: rgba(255,56,71,.075);
+            }
+
+            .weekend-session.live {
+                border-color: rgba(85,220,140,.27);
+                background: rgba(85,220,140,.065);
+            }
+
+            .weekend-day {
+                color: var(--muted);
+                font-size: .72rem;
+                font-weight: 850;
+                text-transform: uppercase;
+            }
+
+            .weekend-session-name {
+                font-weight: 900;
+                line-height: 1.15;
+            }
+
+            .weekend-session-time {
+                color: var(--muted);
+                font-size: .75rem;
+                margin-top: .12rem;
+            }
+
+            .weekend-state {
+                text-align: right;
+                white-space: nowrap;
+                font-size: .7rem;
+                font-weight: 900;
+                letter-spacing: .04em;
+                color: var(--muted);
+            }
+
+            .weekend-state.next {
+                color: #ff6570;
+            }
+
+            .weekend-state.live {
+                color: #67dc98;
+            }
+
+            .podium-grid {
+                display: grid;
+                grid-template-columns: repeat(3, minmax(0,1fr));
+                gap: .5rem;
+                margin: .6rem 0;
+            }
+
+            .podium-card {
+                padding: .75rem .7rem;
+                border-radius: 15px;
+                border: 1px solid rgba(255,255,255,.065);
+                background: rgba(255,255,255,.04);
+                min-width: 0;
+            }
+
+            .podium-pos {
+                color: var(--accent);
+                font-size: .7rem;
+                font-weight: 950;
+            }
+
+            .podium-name {
+                margin-top: .15rem;
+                font-size: .86rem;
+                font-weight: 900;
+                line-height: 1.12;
+                overflow-wrap: anywhere;
+            }
+
+            .podium-points {
+                margin-top: .22rem;
+                color: var(--muted);
+                font-size: .72rem;
+            }
+
             .calendar-head {
                 display: grid;
                 gap: .35rem;
@@ -313,6 +449,25 @@ def apply_styles():
                 .session-line {
                     font-size: .86rem;
                 }
+
+                .weekend-session {
+                    grid-template-columns: 4.8rem minmax(0, 1fr);
+                    gap: .55rem;
+                    padding: .72rem;
+                }
+
+                .weekend-state {
+                    grid-column: 2;
+                    text-align: left;
+                }
+
+                .podium-grid {
+                    grid-template-columns: repeat(3, minmax(0,1fr));
+                }
+
+                .podium-card {
+                    padding: .65rem .55rem;
+                }
             }
         </style>
         """,
@@ -392,6 +547,59 @@ def render_metric_cards(items, columns=2):
 
     html = f'<div class="{cls}">{"".join(cards)}</div>'
     st.markdown(html, unsafe_allow_html=True)
+
+
+
+def render_weekend_header(round_no, race_name, circuit, location, date_range):
+    html = (
+        '<div class="weekend-hero">'
+        f'<div class="weekend-round">RUNDA {escape(str(round_no))} · WEEKEND CENTER</div>'
+        f'<div class="weekend-name">{escape(str(race_name))}</div>'
+        f'<div class="weekend-location">{escape(str(circuit))} · {escape(str(location))}</div>'
+        f'<div class="weekend-location" style="margin-top:.2rem;">{escape(str(date_range))}</div>'
+        '</div>'
+    )
+    st.markdown(html, unsafe_allow_html=True)
+
+
+def render_weekend_session(label, dt_text, day_text, state, note=""):
+    state_upper = (state or "").upper()
+    row_class = "weekend-session"
+    state_class = "weekend-state"
+
+    if state_upper == "NASTĘPNA":
+        row_class += " next"
+        state_class += " next"
+    elif state_upper == "TRWA":
+        row_class += " live"
+        state_class += " live"
+
+    note_html = f'<div class="weekend-session-time">{escape(str(note))}</div>' if note else ""
+    html = (
+        f'<div class="{row_class}">'
+        f'<div class="weekend-day">{escape(str(day_text))}</div>'
+        '<div>'
+        f'<div class="weekend-session-name">{escape(str(label))}</div>'
+        f'<div class="weekend-session-time">{escape(str(dt_text))}</div>'
+        f'{note_html}'
+        '</div>'
+        f'<div class="{state_class}">{escape(str(state))}</div>'
+        '</div>'
+    )
+    st.markdown(html, unsafe_allow_html=True)
+
+
+def render_podium_cards(items):
+    cards = []
+    for position, name, points in items[:3]:
+        cards.append(
+            '<div class="podium-card">'
+            f'<div class="podium-pos">P{escape(str(position))}</div>'
+            f'<div class="podium-name">{escape(str(name))}</div>'
+            f'<div class="podium-points">{escape(str(points))} pkt</div>'
+            '</div>'
+        )
+    st.markdown(f'<div class="podium-grid">{"".join(cards)}</div>', unsafe_allow_html=True)
 
 
 def render_empty(text: str):
