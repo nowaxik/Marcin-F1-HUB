@@ -1,0 +1,54 @@
+2026-09-11 23:52:53.199 WARNING streamlit.runtime.caching.cache_data_api: No runtime found, using MemoryCacheStorageManager
+2026-09-11 23:52:53.199 WARNING streamlit.runtime.caching.cache_data_api: No runtime found, using MemoryCacheStorageManager
+2026-09-11 23:52:53.200 WARNING streamlit.runtime.caching.cache_data_api: No runtime found, using MemoryCacheStorageManager
+2026-09-11 23:52:53.200 WARNING streamlit.runtime.caching.cache_data_api: No runtime found, using MemoryCacheStorageManager
+2026-09-11 23:52:53.200 WARNING streamlit.runtime.caching.cache_data_api: No runtime found, using MemoryCacheStorageManager
+2026-09-11 23:52:53.200 WARNING streamlit.runtime.caching.cache_data_api: No runtime found, using MemoryCacheStorageManager
+2026-09-11 23:52:53.201 WARNING streamlit.runtime.caching.cache_data_api: No runtime found, using MemoryCacheStorageManager
+2026-09-11 23:52:53.201 WARNING streamlit.runtime.caching.cache_data_api: No runtime found, using MemoryCacheStorageManager
+test_end_boundary (test_app.DomainTests.test_end_boundary) ... ok
+test_formatting_boundary_and_nonfinite (test_app.DomainTests.test_formatting_boundary_and_nonfinite) ... ok
+test_invalid_dates_do_not_crash (test_app.DomainTests.test_invalid_dates_do_not_crash) ... ok
+test_latest_session_and_effective_schedule (test_app.DomainTests.test_latest_session_and_effective_schedule) ... ok
+test_live_race_never_completes_weekend (test_app.DomainTests.test_live_race_never_completes_weekend) ... ok
+test_qualification_segments_and_statuses (test_app.DomainTests.test_qualification_segments_and_statuses) ... ok
+test_safe_link (test_app.DomainTests.test_safe_link) ... ok
+test_start_without_end_is_unknown (test_app.DomainTests.test_start_without_end_is_unknown) ... ok
+test_timezone_equivalence_and_dst (test_app.DomainTests.test_timezone_equivalence_and_dst) ... ok
+test_unknown_time_preserved (test_app.DomainTests.test_unknown_time_preserved) ... ok
+test_all_six_screens (test_app.ScreenTests.test_all_six_screens) ... 2026-09-11 23:52:53.212 WARNING streamlit.runtime.caching.cache_data_api: No runtime found, using MemoryCacheStorageManager
+2026-09-11 23:52:53.213 WARNING streamlit.runtime.scriptrunner_utils.script_run_context: Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+ok
+test_all_sources_down (test_app.ScreenTests.test_all_sources_down) ... 2026-09-11 23:52:54.407 No runtime found, using MemoryCacheStorageManager
+2026-09-11 23:52:54.408 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+ok
+test_missing_times_in_screens (test_app.ScreenTests.test_missing_times_in_screens) ... 2026-09-11 23:52:54.809 No runtime found, using MemoryCacheStorageManager
+2026-09-11 23:52:54.810 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+ok
+test_season_switch_requests_selected_year (test_app.ScreenTests.test_season_switch_requests_selected_year) ... 2026-09-11 23:52:55.143 No runtime found, using MemoryCacheStorageManager
+2026-09-11 23:52:55.143 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+ok
+test_standings_failure_keeps_calendar (test_app.ScreenTests.test_standings_failure_keeps_calendar) ... 2026-09-11 23:52:55.369 No runtime found, using MemoryCacheStorageManager
+2026-09-11 23:52:55.370 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+ok
+test_bad_json_schema_is_api_error (test_app.ServiceTests.test_bad_json_schema_is_api_error) ... 2026-09-11 23:52:55.606 No runtime found, using MemoryCacheStorageManager
+ok
+test_driver_failure_retains_practice_results (test_app.ServiceTests.test_driver_failure_retains_practice_results) ... 2026-09-11 23:52:55.607 No runtime found, using MemoryCacheStorageManager
+ok
+test_empty_and_error_are_distinct (test_app.ServiceTests.test_empty_and_error_are_distinct) ... 2026-09-11 23:52:55.607 No runtime found, using MemoryCacheStorageManager
+ok
+test_http_error_classification (test_app.ServiceTests.test_http_error_classification) ... 2026-09-11 23:52:55.608 No runtime found, using MemoryCacheStorageManager
+ok
+test_invalid_json_is_not_connection_error (test_app.ServiceTests.test_invalid_json_is_not_connection_error) ... 2026-09-11 23:52:55.609 No runtime found, using MemoryCacheStorageManager
+ok
+test_jolpica_constructor_and_no_duplicate_status (test_app.ServiceTests.test_jolpica_constructor_and_no_duplicate_status) ... 2026-09-11 23:52:55.610 No runtime found, using MemoryCacheStorageManager
+ok
+test_last_good_snapshot_and_cooldown (test_app.ServiceTests.test_last_good_snapshot_and_cooldown) ... 2026-09-11 23:52:55.610 No runtime found, using MemoryCacheStorageManager
+ok
+test_nullable_metadata (test_app.ServiceTests.test_nullable_metadata) ... 2026-09-11 23:52:55.610 No runtime found, using MemoryCacheStorageManager
+ok
+
+----------------------------------------------------------------------
+Ran 23 tests in 2.400s
+
+OK

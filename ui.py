@@ -1,10 +1,11 @@
 from datetime import datetime
 from html import escape
-from zoneinfo import ZoneInfo
+from math import isfinite
+from domain import WARSAW, seconds_to_time, format_session_name
 
 import streamlit as st
 
-WARSAW = ZoneInfo("Europe/Warsaw")
+
 
 
 def apply_styles():
@@ -52,10 +53,10 @@ def apply_styles():
                 text-transform: uppercase;
             }
 
-            .hero-title {
+            .stApp .hero-title {
                 margin: .25rem 0 .45rem;
-                font-size: clamp(2rem, 8vw, 3rem);
-                line-height: .95;
+                font-size: clamp(2rem, 8vw, 3rem) !important;
+                line-height: 1.05 !important;
                 font-weight: 950;
                 letter-spacing: -.055em;
             }
@@ -65,9 +66,10 @@ def apply_styles():
                 font-size: .88rem;
             }
 
-            .section-title {
+            .stApp .section-title {
                 margin: 1.35rem 0 .65rem;
-                font-size: 1.18rem;
+                font-size: 1.18rem !important;
+                line-height: 1.3 !important;
                 font-weight: 900;
                 letter-spacing: -.025em;
             }
@@ -261,9 +263,10 @@ def apply_styles():
             }
 
             .weekend-state {
+                overflow-wrap: anywhere;
                 text-align: right;
-                white-space: nowrap;
-                font-size: .7rem;
+                white-space: normal;
+                font-size: .75rem;
                 font-weight: 900;
                 letter-spacing: .04em;
                 color: var(--muted);
@@ -399,7 +402,7 @@ def apply_styles():
             .footer {
                 text-align: center;
                 margin-top: 2.4rem;
-                color: #69727b;
+                color: #98a1aa;
                 font-size: .72rem;
             }
 
@@ -469,6 +472,10 @@ def apply_styles():
                     padding: .65rem .55rem;
                 }
             }
+            @media (max-width: 420px) {
+                .metric-grid.cols-3, .podium-grid { grid-template-columns: 1fr; }
+                .form-strip { flex-wrap: wrap; }
+            }
         </style>
         """,
         unsafe_allow_html=True,
@@ -480,7 +487,7 @@ def render_hero(kicker: str, title: str, subtitle: str):
         f"""
         <div class="hero">
             <div class="eyebrow">{escape(kicker)}</div>
-            <div class="hero-title">{escape(title)}</div>
+            <h1 class="hero-title">{escape(title)}</h1>
             <div class="muted">{escape(subtitle)}</div>
         </div>
         """,
@@ -489,7 +496,7 @@ def render_hero(kicker: str, title: str, subtitle: str):
 
 
 def render_section_title(text: str):
-    st.markdown(f'<div class="section-title">{escape(text)}</div>', unsafe_allow_html=True)
+    st.markdown(f'<h2 class="section-title">{escape(text)}</h2>', unsafe_allow_html=True)
 
 
 def render_session_card(gp: str, session: str, countdown: str, details: str):
@@ -509,7 +516,7 @@ def render_session_card(gp: str, session: str, countdown: str, details: str):
 def driver_row_html(row: dict, full: bool = False) -> str:
     driver = row.get("Driver", {})
     constructors = row.get("Constructors", [])
-    team = constructors[0].get("name", "—") if constructors else "—"
+    team = " / ".join(c.get("name") or "—" for c in constructors) or "—"
     name = f"{driver.get('givenName', '')} {driver.get('familyName', '')}".strip()
     secondary = team
     if full:
@@ -625,31 +632,7 @@ def format_local_datetime(dt: datetime | None, short=False) -> str:
     return local.strftime("%d.%m.%Y · %H:%M")
 
 
-def format_session_name(name: str) -> str:
-    value = (name or "").strip().lower()
-    mapping = {
-        "practice 1": "FP1",
-        "practice 2": "FP2",
-        "practice 3": "FP3",
-        "sprint qualifying": "Kwalifikacje sprintu",
-        "sprint shootout": "Kwalifikacje sprintu",
-        "sprint": "Sprint",
-        "qualifying": "Kwalifikacje",
-        "race": "Wyścig",
-    }
-    return mapping.get(value, name)
-
-
-def _seconds_to_time(value: float) -> str:
-    if value < 0:
-        return ""
-    hours = int(value // 3600)
-    remainder = value - hours * 3600
-    minutes = int(remainder // 60)
-    seconds = remainder - minutes * 60
-    if hours:
-        return f"{hours}:{minutes:02d}:{seconds:06.3f}"
-    return f"{minutes}:{seconds:06.3f}"
+_seconds_to_time = seconds_to_time
 
 
 def format_duration(value) -> str:
@@ -685,6 +668,8 @@ def format_gap(value) -> str:
         value = usable[-1]
 
     if isinstance(value, (int, float)):
+        if not isfinite(float(value)):
+            return ""
         if float(value) == 0:
             return "lider"
         return f"+{float(value):.3f}"
